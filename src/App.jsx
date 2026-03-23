@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const initialPlayers = [
   { name: "Fannsi", alias: "Åberg", handicap: 3.3, team: "Europe" },
@@ -225,16 +225,29 @@ function TeamCard({ title, players, total }) {
 }
 
 export default function App() {
-  const [players, setPlayers] = useState(initialPlayers);
-  const [matches, setMatches] = useState(generateMatches(initialPlayers));
-  const [individualPoints, setIndividualPoints] = useState(buildPoints(initialPlayers));
-  const [sideStats, setSideStats] = useState(buildSideStats(initialPlayers));
-  const [tab, setTab] = useState("teams");
-  const [mobileSimulator, setMobileSimulator] = useState("Simulator 1");
-  const [bestDriveWinner, setBestDriveWinner] = useState("");
-  const [bestDriveValue, setBestDriveValue] = useState("");
-  const [nearestWinner, setNearestWinner] = useState("");
-  const [nearestValue, setNearestValue] = useState("");
+  const storageKey = "nomy-cup-state-v1";
+
+  const loadState = () => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const saved = loadState();
+  const [players, setPlayers] = useState(saved?.players || initialPlayers);
+  const [matches, setMatches] = useState(saved?.matches || generateMatches(saved?.players || initialPlayers));
+  const [individualPoints, setIndividualPoints] = useState(saved?.individualPoints || buildPoints(saved?.players || initialPlayers));
+  const [sideStats, setSideStats] = useState(saved?.sideStats || buildSideStats(saved?.players || initialPlayers));
+  const [tab, setTab] = useState(saved?.tab || "teams");
+  const [mobileSimulator, setMobileSimulator] = useState(saved?.mobileSimulator || "Simulator 1");
+  const [bestDriveWinner, setBestDriveWinner] = useState(saved?.bestDriveWinner || "");
+  const [bestDriveValue, setBestDriveValue] = useState(saved?.bestDriveValue || "");
+  const [nearestWinner, setNearestWinner] = useState(saved?.nearestWinner || "");
+  const [nearestValue, setNearestValue] = useState(saved?.nearestValue || "");
 
   const europePlayers = useMemo(() => players.filter((p) => p.team === "Europe"), [players]);
   const usaPlayers = useMemo(() => players.filter((p) => p.team === "USA"), [players]);
@@ -310,6 +323,39 @@ export default function App() {
 
   const tabs = ["teams", "matches", "mobile", "sidegames", "leaderboard"];
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload = {
+      players,
+      matches,
+      individualPoints,
+      sideStats,
+      tab,
+      mobileSimulator,
+      bestDriveWinner,
+      bestDriveValue,
+      nearestWinner,
+      nearestValue,
+    };
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+  }, [players, matches, individualPoints, sideStats, tab, mobileSimulator, bestDriveWinner, bestDriveValue, nearestWinner, nearestValue]);
+
+  const resetSavedData = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(storageKey);
+    }
+    setPlayers(initialPlayers);
+    setMatches(generateMatches(initialPlayers));
+    setIndividualPoints(buildPoints(initialPlayers));
+    setSideStats(buildSideStats(initialPlayers));
+    setTab("teams");
+    setMobileSimulator("Simulator 1");
+    setBestDriveWinner("");
+    setBestDriveValue("");
+    setNearestWinner("");
+    setNearestValue("");
+  };
+
   const getPlayerColors = (team) => ({
     border: team === "Europe" ? "1px solid #bfdbfe" : "1px solid #fecaca",
     background: team === "Europe" ? "#eff6ff" : "#fef2f2",
@@ -373,6 +419,7 @@ export default function App() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
                 <button style={primaryButton} onClick={applyRoster}>Apply & regenerate</button>
                 <button style={buttonStyle} onClick={autoRebalance}>Auto rebalance teams</button>
+                <button style={buttonStyle} onClick={resetSavedData}>Reset saved data</button>
               </div>
             </div>
 
