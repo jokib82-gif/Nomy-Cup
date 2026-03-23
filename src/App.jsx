@@ -381,11 +381,28 @@ export default function App() {
     return { europe, usa };
   }, [matches]);
 
+  const sidePoints = useMemo(() => {
+    const pts = {};
+    players.forEach((p) => {
+      let s = 0;
+      const st = sideStats[p.name] || {};
+      if (st.bestDrive) s += 1;
+      if (st.nearestHole) s += 1;
+      if (bestDriveWinner === p.name) s += 1;
+      if (nearestWinner === p.name) s += 1;
+      pts[p.name] = s;
+    });
+    return pts;
+  }, [players, sideStats, bestDriveWinner, nearestWinner]);
+
   const leaderboard = useMemo(() => {
     return [...players]
-      .map((p) => ({ ...p, points: Number(individualPoints[p.name] || 0) }))
+      .map((p) => ({ 
+        ...p, 
+        points: Number(individualPoints[p.name] || 0) + Number(sidePoints[p.name] || 0)
+      }))
       .sort((a, b) => b.points - a.points || a.handicap - b.handicap);
-  }, [players, individualPoints]);
+  }, [players, individualPoints, sidePoints]);
 
   const mobileMatches = useMemo(
     () => matches.filter((m) => m.simulator === mobileSimulator),
@@ -544,6 +561,8 @@ export default function App() {
           </h1>
           <div style={{ color: "#475569", marginBottom: 12 }}>
             Texas Scramble • Fourball • Singles (HCP)
+          
+          💰 Hole in One Prize: 1,000,000 kr
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             <div
