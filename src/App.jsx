@@ -15,6 +15,12 @@ const initialPlayers = [
   { name: "Ari", alias: "Schauffele", handicap: 20.5, team: "USA" },
 ];
 
+const sideGameConfig = {
+  course: "Marcella Club",
+  nearestToHoleHoles: [3, 7, 11, 13, 15],
+  longestDriveHoles: [4, 6, 12],
+};
+
 const aliasPool = [
   "Scheffler",
   "McIlroy",
@@ -346,6 +352,14 @@ export default function App() {
   const [bestDriveValue, setBestDriveValue] = useState(saved?.bestDriveValue || "");
   const [nearestWinner, setNearestWinner] = useState(saved?.nearestWinner || "");
   const [nearestValue, setNearestValue] = useState(saved?.nearestValue || "");
+  const [nearestToHoleWinners, setNearestToHoleWinners] = useState(
+    saved?.nearestToHoleWinners ||
+      Object.fromEntries(sideGameConfig.nearestToHoleHoles.map((hole) => [hole, { player: "", value: "" }]))
+  );
+  const [longDriveWinners, setLongDriveWinners] = useState(
+    saved?.longDriveWinners ||
+      Object.fromEntries(sideGameConfig.longestDriveHoles.map((hole) => [hole, { player: "", value: "" }]))
+  );
 
   const europePlayers = useMemo(() => players.filter((p) => p.team === "Europe"), [players]);
   const usaPlayers = useMemo(() => players.filter((p) => p.team === "USA"), [players]);
@@ -441,6 +455,16 @@ export default function App() {
     }));
   };
 
+  const updateHoleSideGame = (setter, state, hole, field, value) => {
+    setter({
+      ...state,
+      [hole]: {
+        ...(state[hole] || { player: "", value: "" }),
+        [field]: value,
+      },
+    });
+  };
+
   const tabs = ["teams", "matches", "mobile", "sidegames", "leaderboard"];
 
   useEffect(() => {
@@ -456,6 +480,8 @@ export default function App() {
       bestDriveValue,
       nearestWinner,
       nearestValue,
+      nearestToHoleWinners,
+      longDriveWinners,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
   }, [
@@ -469,6 +495,8 @@ export default function App() {
     bestDriveValue,
     nearestWinner,
     nearestValue,
+    nearestToHoleWinners,
+    longDriveWinners,
   ]);
 
   const resetSavedData = () => {
@@ -485,6 +513,12 @@ export default function App() {
     setBestDriveValue("");
     setNearestWinner("");
     setNearestValue("");
+    setNearestToHoleWinners(
+      Object.fromEntries(sideGameConfig.nearestToHoleHoles.map((hole) => [hole, { player: "", value: "" }]))
+    );
+    setLongDriveWinners(
+      Object.fromEntries(sideGameConfig.longestDriveHoles.map((hole) => [hole, { player: "", value: "" }]))
+    );
   };
 
   const getPlayerColors = (team) => ({
@@ -724,8 +758,7 @@ export default function App() {
                                 border: "1px dashed #93c5fd",
                               }}
                             >
-                              Europe {fmt(match.hcpA)} • USA {fmt(match.hcpB)} •{" "}
-                              <strong>{match.strokePlayer}</strong> gets {fmt(match.hcpDiff)} strokes
+                              Europe {fmt(match.hcpA)} • USA {fmt(match.hcpB)} • <strong>{match.strokePlayer}</strong> gets {fmt(match.hcpDiff)} strokes
                               {hasValidScore(match.scoreA) &&
                                 hasValidScore(match.scoreB) &&
                                 (() => {
@@ -939,43 +972,118 @@ export default function App() {
         {tab === "sidegames" && (
           <div style={{ display: "grid", gap: 16 }}>
             <div style={sectionStyle}>
+              <h2 style={{ marginTop: 0 }}>Singles side games</h2>
+              <div style={{ color: "#475569", marginBottom: 12 }}>
+                Course: <strong>{sideGameConfig.course}</strong>
+              </div>
+
+              <div style={{ marginBottom: 18 }}>
+                <h3 style={{ margin: "0 0 10px 0", color: "#1d4ed8" }}>Nearest to the Hole</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  {sideGameConfig.nearestToHoleHoles.map((hole) => (
+                    <div
+                      key={`nth-${hole}`}
+                      style={{ border: "1px solid #bfdbfe", background: "#eff6ff", borderRadius: 14, padding: 12 }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: 8 }}>Hole {hole}</div>
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <input
+                          style={inputStyle}
+                          value={nearestToHoleWinners[hole]?.player || ""}
+                          onChange={(e) =>
+                            updateHoleSideGame(
+                              setNearestToHoleWinners,
+                              nearestToHoleWinners,
+                              hole,
+                              "player",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Player"
+                        />
+                        <input
+                          style={inputStyle}
+                          value={nearestToHoleWinners[hole]?.value || ""}
+                          onChange={(e) =>
+                            updateHoleSideGame(
+                              setNearestToHoleWinners,
+                              nearestToHoleWinners,
+                              hole,
+                              "value",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Distance, e.g. 1.82 m"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 style={{ margin: "0 0 10px 0", color: "#b91c1c" }}>Longest Drive</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  {sideGameConfig.longestDriveHoles.map((hole) => (
+                    <div
+                      key={`ld-${hole}`}
+                      style={{ border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 14, padding: 12 }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: 8 }}>Hole {hole}</div>
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <input
+                          style={inputStyle}
+                          value={longDriveWinners[hole]?.player || ""}
+                          onChange={(e) =>
+                            updateHoleSideGame(
+                              setLongDriveWinners,
+                              longDriveWinners,
+                              hole,
+                              "player",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Player"
+                        />
+                        <input
+                          style={inputStyle}
+                          value={longDriveWinners[hole]?.value || ""}
+                          onChange={(e) =>
+                            updateHoleSideGame(
+                              setLongDriveWinners,
+                              longDriveWinners,
+                              hole,
+                              "value",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Distance, e.g. 301 m"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Overall side game winners</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <div>
                   <div style={{ marginBottom: 6 }}>Best drive winner</div>
-                  <input
-                    style={inputStyle}
-                    value={bestDriveWinner}
-                    onChange={(e) => setBestDriveWinner(e.target.value)}
-                    placeholder="Player"
-                  />
+                  <input style={inputStyle} value={bestDriveWinner} onChange={(e) => setBestDriveWinner(e.target.value)} placeholder="Player" />
                 </div>
                 <div>
                   <div style={{ marginBottom: 6 }}>Best drive value</div>
-                  <input
-                    style={inputStyle}
-                    value={bestDriveValue}
-                    onChange={(e) => setBestDriveValue(e.target.value)}
-                    placeholder="e.g. 289 m"
-                  />
+                  <input style={inputStyle} value={bestDriveValue} onChange={(e) => setBestDriveValue(e.target.value)} placeholder="e.g. 289 m" />
                 </div>
                 <div>
-                  <div style={{ marginBottom: 6 }}>Nearest hole winner</div>
-                  <input
-                    style={inputStyle}
-                    value={nearestWinner}
-                    onChange={(e) => setNearestWinner(e.target.value)}
-                    placeholder="Player"
-                  />
+                  <div style={{ marginBottom: 6 }}>Nearest hole overall winner</div>
+                  <input style={inputStyle} value={nearestWinner} onChange={(e) => setNearestWinner(e.target.value)} placeholder="Player" />
                 </div>
                 <div>
-                  <div style={{ marginBottom: 6 }}>Nearest hole value</div>
-                  <input
-                    style={inputStyle}
-                    value={nearestValue}
-                    onChange={(e) => setNearestValue(e.target.value)}
-                    placeholder="e.g. 1.82 m"
-                  />
+                  <div style={{ marginBottom: 6 }}>Nearest hole overall value</div>
+                  <input style={inputStyle} value={nearestValue} onChange={(e) => setNearestValue(e.target.value)} placeholder="e.g. 1.82 m" />
                 </div>
               </div>
             </div>
@@ -986,9 +1094,7 @@ export default function App() {
                 {players.map((player) => (
                   <div key={player.name} style={{ borderRadius: 14, padding: 12, ...getPlayerColors(player.team) }}>
                     <div style={{ fontWeight: 700 }}>{player.name}</div>
-                    <div style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
-                      {player.alias} • {player.team}
-                    </div>
+                    <div style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>{player.alias} • {player.team}</div>
                     <div style={{ display: "grid", gap: 8 }}>
                       <input
                         style={inputStyle}
@@ -1062,15 +1168,26 @@ export default function App() {
             <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Side games summary</h2>
               <div style={{ display: "grid", gap: 10 }}>
-                <div>
-                  <strong>Best drive:</strong> {bestDriveWinner || "—"} {bestDriveValue ? `• ${bestDriveValue}` : ""}
+                <div><strong>Course:</strong> {sideGameConfig.course}</div>
+                <div><strong>Best drive overall:</strong> {bestDriveWinner || "—"} {bestDriveValue ? `• ${bestDriveValue}` : ""}</div>
+                <div><strong>Nearest hole overall:</strong> {nearestWinner || "—"} {nearestValue ? `• ${nearestValue}` : ""}</div>
+                <div><strong>Nearest to the Hole holes:</strong> {sideGameConfig.nearestToHoleHoles.join(", ")}</div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {sideGameConfig.nearestToHoleHoles.map((hole) => (
+                    <div key={`summary-nth-${hole}`}>
+                      Hole {hole}: {nearestToHoleWinners[hole]?.player || "—"} {nearestToHoleWinners[hole]?.value ? `• ${nearestToHoleWinners[hole].value}` : ""}
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <strong>Nearest hole:</strong> {nearestWinner || "—"} {nearestValue ? `• ${nearestValue}` : ""}
+                <div><strong>Longest Drive holes:</strong> {sideGameConfig.longestDriveHoles.join(", ")}</div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {sideGameConfig.longestDriveHoles.map((hole) => (
+                    <div key={`summary-ld-${hole}`}>
+                      Hole {hole}: {longDriveWinners[hole]?.player || "—"} {longDriveWinners[hole]?.value ? `• ${longDriveWinners[hole].value}` : ""}
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <strong>Formats:</strong> Texas Scramble, Fourball, Singles (HCP)
-                </div>
+                <div><strong>Formats:</strong> Texas Scramble, Fourball, Singles (HCP)</div>
               </div>
             </div>
           </div>
