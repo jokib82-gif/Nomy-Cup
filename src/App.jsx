@@ -39,6 +39,47 @@ function fmt(value) {
   return Number(value || 0).toFixed(1);
 }
 
+function hasValidScore(value) {
+  return value !== "" && value !== null && value !== undefined && !Number.isNaN(Number(value));
+}
+
+function getMatchResultFromScores(match) {
+  if (!hasValidScore(match.scoreA) || !hasValidScore(match.scoreB)) {
+    return "";
+  }
+
+  const grossA = Number(match.scoreA);
+  const grossB = Number(match.scoreB);
+
+  if (match.round === "Singles (HCP)") {
+    const strokesA = Math.max(0, Number(match.hcpA || 0) - Number(match.hcpB || 0));
+    const strokesB = Math.max(0, Number(match.hcpB || 0) - Number(match.hcpA || 0));
+
+    const netA = grossA - strokesA;
+    const netB = grossB - strokesB;
+
+    if (netA < netB) return "Europe";
+    if (netB < netA) return "USA";
+    return "Halved";
+  }
+
+  if (grossA < grossB) return "Europe";
+  if (grossB < grossA) return "USA";
+  return "Halved";
+}
+
+function getSinglesNetScores(match) {
+  const grossA = Number(match.scoreA || 0);
+  const grossB = Number(match.scoreB || 0);
+  const strokesA = Math.max(0, Number(match.hcpA || 0) - Number(match.hcpB || 0));
+  const strokesB = Math.max(0, Number(match.hcpB || 0) - Number(match.hcpA || 0));
+
+  return {
+    netA: grossA - strokesA,
+    netB: grossB - strokesB,
+  };
+}
+
 function rebalanceTeams(players) {
   const sorted = [...players].sort((a, b) => a.handicap - b.handicap);
   const europe = [];
@@ -157,9 +198,7 @@ function buildPoints(players) {
 }
 
 function buildSideStats(players) {
-  return Object.fromEntries(
-    players.map((p) => [p.name, { bestDrive: "", nearestHole: "" }])
-  );
+  return Object.fromEntries(players.map((p) => [p.name, { bestDrive: "", nearestHole: "" }]));
 }
 
 const sectionStyle = {
@@ -280,7 +319,11 @@ export default function App() {
   );
 
   const updatePlayer = (index, field, value) => {
-    setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: field === "handicap" ? parseNum(value) : value } : p)));
+    setPlayers((prev) =>
+      prev.map((p, i) =>
+        i === index ? { ...p, [field]: field === "handicap" ? parseNum(value) : value } : p
+      )
+    );
   };
 
   const applyRoster = () => {
@@ -293,7 +336,9 @@ export default function App() {
     setPlayers(cleaned);
     setMatches(generateMatches(cleaned));
     setIndividualPoints((prev) => Object.fromEntries(cleaned.map((p) => [p.name, prev[p.name] || 0])));
-    setSideStats((prev) => Object.fromEntries(cleaned.map((p) => [p.name, prev[p.name] || { bestDrive: "", nearestHole: "" }])));
+    setSideStats((prev) =>
+      Object.fromEntries(cleaned.map((p) => [p.name, prev[p.name] || { bestDrive: "", nearestHole: "" }]))
+    );
   };
 
   const autoRebalance = () => {
@@ -301,14 +346,30 @@ export default function App() {
     setPlayers(balanced);
     setMatches(generateMatches(balanced));
     setIndividualPoints((prev) => Object.fromEntries(balanced.map((p) => [p.name, prev[p.name] || 0])));
-    setSideStats((prev) => Object.fromEntries(balanced.map((p) => [p.name, prev[p.name] || { bestDrive: "", nearestHole: "" }])));
+    setSideStats((prev) =>
+      Object.fromEntries(balanced.map((p) => [p.name, prev[p.name] || { bestDrive: "", nearestHole: "" }]))
+    );
   };
 
   const updateMatch = (idx, field, value) => {
-    setMatches((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m)));
+    setMatches((prev) =>
+      prev.map((m, i) => {
+        if (i !== idx) return m;
+
+        const updatedMatch = { ...m, [field]: value };
+
+        if (field === "scoreA" || field === "scoreB") {
+          updatedMatch.winner = getMatchResultFromScores(updatedMatch);
+        }
+
+        return updatedMatch;
+      })
+    );
   };
 
-  const updateWinner = (idx, winner) => updateMatch(idx, "winner", winner);
+  const updateWinner = (idx, winner) => {
+    setMatches((prev) => prev.map((m, i) => (i === idx ? { ...m, winner } : m)));
+  };
 
   const updatePointEntry = (name, value) => {
     setIndividualPoints((prev) => ({ ...prev, [name]: parseNum(value) }));
@@ -338,7 +399,18 @@ export default function App() {
       nearestValue,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
-  }, [players, matches, individualPoints, sideStats, tab, mobileSimulator, bestDriveWinner, bestDriveValue, nearestWinner, nearestValue]);
+  }, [
+    players,
+    matches,
+    individualPoints,
+    sideStats,
+    tab,
+    mobileSimulator,
+    bestDriveWinner,
+    bestDriveValue,
+    nearestWinner,
+    nearestValue,
+  ]);
 
   const resetSavedData = () => {
     if (typeof window !== "undefined") {
@@ -362,23 +434,49 @@ export default function App() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: 16, fontFamily: "Arial, sans-serif", color: "#0f172a" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f8fafc",
+        padding: 16,
+        fontFamily: "Arial, sans-serif",
+        color: "#0f172a",
+      }}
+    >
       <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gap: 16 }}>
         <div style={sectionStyle}>
           <h1 style={{ margin: "0 0 8px 0", display: "flex", alignItems: "center", gap: 10 }}>
             🏆 <span style={{ fontWeight: 800 }}>Nomy Cup</span>
           </h1>
-          <div style={{ color: "#475569", marginBottom: 12 }}>Texas Scramble • Fourball • Singles (HCP)</div>
+          <div style={{ color: "#475569", marginBottom: 12 }}>
+            Texas Scramble • Fourball • Singles (HCP)
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <div style={{ border: "1px solid #1e40af", background: "#1e3a8a", borderRadius: 14, padding: 12, color: "white" }}>
+            <div
+              style={{
+                border: "1px solid #1e40af",
+                background: "#1e3a8a",
+                borderRadius: 14,
+                padding: 12,
+                color: "white",
+              }}
+            >
               <div style={{ color: "#ffffff", fontSize: 13 }}>Europe</div>
               <div style={{ fontSize: 28, fontWeight: 700 }}>{teamPoints.europe.toFixed(1)}</div>
-              <div style={{ color: "#475569" }}>Total HCP {fmt(europeTotal)}</div>
+              <div style={{ color: "#cbd5e1" }}>Total HCP {fmt(europeTotal)}</div>
             </div>
-            <div style={{ border: "1px solid #991b1b", background: "#7f1d1d", borderRadius: 14, padding: 12, color: "white" }}>
+            <div
+              style={{
+                border: "1px solid #991b1b",
+                background: "#7f1d1d",
+                borderRadius: 14,
+                padding: 12,
+                color: "white",
+              }}
+            >
               <div style={{ color: "#ffffff", fontSize: 13 }}>USA</div>
               <div style={{ fontSize: 28, fontWeight: 700 }}>{teamPoints.usa.toFixed(1)}</div>
-              <div style={{ color: "#475569" }}>Total HCP {fmt(usaTotal)}</div>
+              <div style={{ color: "#cbd5e1" }}>Total HCP {fmt(usaTotal)}</div>
             </div>
             <div style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 14, padding: 12 }}>
               <div style={{ color: "#475569", fontSize: 13 }}>Status</div>
@@ -392,11 +490,7 @@ export default function App() {
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {tabs.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              style={tab === t ? primaryButton : buttonStyle}
-            >
+            <button key={t} onClick={() => setTab(t)} style={tab === t ? primaryButton : buttonStyle}>
               {t === "sidegames" ? "Side Games" : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
@@ -408,18 +502,56 @@ export default function App() {
               <h2 style={{ marginTop: 0 }}>Edit players and handicaps</h2>
               <div style={{ display: "grid", gap: 10 }}>
                 {players.map((player, index) => (
-                  <div key={`${player.name}-${index}`} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr", gap: 10, padding: 10, borderRadius: 12, ...getPlayerColors(player.team) }}>
-                    <input style={inputStyle} value={player.name} onChange={(e) => updatePlayer(index, "name", e.target.value)} placeholder="Name" />
-                    <input style={inputStyle} value={player.alias} onChange={(e) => updatePlayer(index, "alias", e.target.value)} placeholder="Alias" />
-                    <input style={inputStyle} type="number" step="0.1" value={player.handicap} onChange={(e) => updatePlayer(index, "handicap", e.target.value)} placeholder="HCP" />
-                    <input style={inputStyle} value={player.team} onChange={(e) => updatePlayer(index, "team", e.target.value)} placeholder="Team" />
+                  <div
+                    key={`${player.name}-${index}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "2fr 2fr 1fr 1fr",
+                      gap: 10,
+                      padding: 10,
+                      borderRadius: 12,
+                      ...getPlayerColors(player.team),
+                    }}
+                  >
+                    <input
+                      style={inputStyle}
+                      value={player.name}
+                      onChange={(e) => updatePlayer(index, "name", e.target.value)}
+                      placeholder="Name"
+                    />
+                    <input
+                      style={inputStyle}
+                      value={player.alias}
+                      onChange={(e) => updatePlayer(index, "alias", e.target.value)}
+                      placeholder="Alias"
+                    />
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      step="0.1"
+                      value={player.handicap}
+                      onChange={(e) => updatePlayer(index, "handicap", e.target.value)}
+                      placeholder="HCP"
+                    />
+                    <input
+                      style={inputStyle}
+                      value={player.team}
+                      onChange={(e) => updatePlayer(index, "team", e.target.value)}
+                      placeholder="Team"
+                    />
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                <button style={primaryButton} onClick={applyRoster}>Apply & regenerate</button>
-                <button style={buttonStyle} onClick={autoRebalance}>Auto rebalance teams</button>
-                <button style={buttonStyle} onClick={resetSavedData}>Reset saved data</button>
+                <button style={primaryButton} onClick={applyRoster}>
+                  Apply & regenerate
+                </button>
+                <button style={buttonStyle} onClick={autoRebalance}>
+                  Auto rebalance teams
+                </button>
+                <button style={buttonStyle} onClick={resetSavedData}>
+                  Reset saved data
+                </button>
               </div>
             </div>
 
@@ -432,31 +564,69 @@ export default function App() {
 
         {tab === "matches" && (
           <div style={{ display: "grid", gap: 16 }}>
-            {['Texas Scramble', 'Fourball', 'Singles (HCP)'].map((round) => (
+            {["Texas Scramble", "Fourball", "Singles (HCP)"].map((round) => (
               <div key={round} style={sectionStyle}>
                 <h2 style={{ marginTop: 0 }}>{round}</h2>
-                <div style={{ display: 'grid', gap: 12 }}>
-                  {matches.map((match, idx) => match.round === round ? (
-                    <div key={`${round}-${idx}`} style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 12 }}>
-                      <div style={{ fontSize: 13, color: '#64748b' }}>{match.simulator}</div>
-                      <div style={{ fontWeight: 700, margin: '4px 0 8px 0' }}>{match.matchup}</div>
-                      {round === 'Singles (HCP)' && (
-                        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-                          Europe {fmt(match.hcpA)} • USA {fmt(match.hcpB)} • {match.strokePlayer} gets {fmt(match.hcpDiff)} strokes
+                <div style={{ display: "grid", gap: 12 }}>
+                  {matches.map((match, idx) =>
+                    match.round === round ? (
+                      <div key={`${round}-${idx}`} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 12 }}>
+                        <div style={{ fontSize: 13, color: "#64748b" }}>{match.simulator}</div>
+                        <div style={{ fontWeight: 700, margin: "4px 0 8px 0" }}>{match.matchup}</div>
+
+                        {round === "Singles (HCP)" && (
+                          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
+                            Europe {fmt(match.hcpA)} • USA {fmt(match.hcpB)} • {match.strokePlayer} gets {fmt(match.hcpDiff)} strokes
+                            {hasValidScore(match.scoreA) && hasValidScore(match.scoreB) && (() => {
+                              const { netA, netB } = getSinglesNetScores(match);
+                              return (
+                                <div style={{ marginTop: 4 }}>
+                                  Net: Europe {fmt(netA)} • USA {fmt(netB)}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
+                          <input
+                            style={inputStyle}
+                            placeholder="Current hole"
+                            value={match.hole}
+                            onChange={(e) => updateMatch(idx, "hole", e.target.value)}
+                          />
+                          <input
+                            style={inputStyle}
+                            placeholder="Europe side"
+                            value={match.scoreA}
+                            onChange={(e) => updateMatch(idx, "scoreA", e.target.value)}
+                          />
+                          <input
+                            style={inputStyle}
+                            placeholder="USA side"
+                            value={match.scoreB}
+                            onChange={(e) => updateMatch(idx, "scoreB", e.target.value)}
+                          />
                         </div>
-                      )}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-                        <input style={inputStyle} placeholder="Current hole" value={match.hole} onChange={(e) => updateMatch(idx, 'hole', e.target.value)} />
-                        <input style={inputStyle} placeholder="Europe side" value={match.scoreA} onChange={(e) => updateMatch(idx, 'scoreA', e.target.value)} />
-                        <input style={inputStyle} placeholder="USA side" value={match.scoreB} onChange={(e) => updateMatch(idx, 'scoreB', e.target.value)} />
+
+                        <div style={{ fontSize: 13, color: "#475569", marginBottom: 8 }}>
+                          Auto result: {match.winner || "—"}
+                        </div>
+
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button style={match.winner === "Europe" ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, "Europe")}>
+                            Europe win
+                          </button>
+                          <button style={match.winner === "USA" ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, "USA")}>
+                            USA win
+                          </button>
+                          <button style={match.winner === "Halved" ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, "Halved")}>
+                            Halved
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button style={match.winner === 'Europe' ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, 'Europe')}>Europe win</button>
-                        <button style={match.winner === 'USA' ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, 'USA')}>USA win</button>
-                        <button style={match.winner === 'Halved' ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, 'Halved')}>Halved</button>
-                      </div>
-                    </div>
-                  ) : null)}
+                    ) : null
+                  )}
                 </div>
               </div>
             ))}
@@ -467,33 +637,79 @@ export default function App() {
           <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
             <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Simulator entry</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {['Simulator 1','Simulator 2','Simulator 3'].map((sim) => (
-                  <button key={sim} style={mobileSimulator === sim ? primaryButton : buttonStyle} onClick={() => setMobileSimulator(sim)}>{sim.replace('Simulator ','Sim ')}</button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {["Simulator 1", "Simulator 2", "Simulator 3"].map((sim) => (
+                  <button
+                    key={sim}
+                    style={mobileSimulator === sim ? primaryButton : buttonStyle}
+                    onClick={() => setMobileSimulator(sim)}
+                  >
+                    {sim.replace("Simulator ", "Sim ")}
+                  </button>
                 ))}
               </div>
             </div>
-            <div style={{ display: 'grid', gap: 12 }}>
+
+            <div style={{ display: "grid", gap: 12 }}>
               {mobileMatches.map((match, idx) => {
-                const realIndex = matches.findIndex((m) => m.round === match.round && m.simulator === match.simulator && m.matchup === match.matchup);
+                const realIndex = matches.findIndex(
+                  (m) => m.round === match.round && m.simulator === match.simulator && m.matchup === match.matchup
+                );
+
                 return (
                   <div key={`${match.matchup}-${idx}`} style={sectionStyle}>
-                    <div style={{ color: '#64748b', fontSize: 13 }}>{match.round}</div>
-                    <div style={{ fontWeight: 700, margin: '6px 0 10px 0' }}>{match.matchup}</div>
-                    {match.round === 'Singles (HCP)' && (
-                      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>{match.round}</div>
+                    <div style={{ fontWeight: 700, margin: "6px 0 10px 0" }}>{match.matchup}</div>
+
+                    {match.round === "Singles (HCP)" && (
+                      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
                         {match.strokePlayer} gets {fmt(match.hcpDiff)} strokes
+                        {hasValidScore(match.scoreA) && hasValidScore(match.scoreB) && (() => {
+                          const { netA, netB } = getSinglesNetScores(match);
+                          return (
+                            <div style={{ marginTop: 4 }}>
+                              Net: Europe {fmt(netA)} • USA {fmt(netB)}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      <input style={{ ...inputStyle, height: 44 }} placeholder="Current hole" value={match.hole} onChange={(e) => updateMatch(realIndex, 'hole', e.target.value)} />
-                      <input style={{ ...inputStyle, height: 44 }} placeholder="Europe side score" value={match.scoreA} onChange={(e) => updateMatch(realIndex, 'scoreA', e.target.value)} />
-                      <input style={{ ...inputStyle, height: 44 }} placeholder="USA side score" value={match.scoreB} onChange={(e) => updateMatch(realIndex, 'scoreB', e.target.value)} />
+
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <input
+                        style={{ ...inputStyle, height: 44 }}
+                        placeholder="Current hole"
+                        value={match.hole}
+                        onChange={(e) => updateMatch(realIndex, "hole", e.target.value)}
+                      />
+                      <input
+                        style={{ ...inputStyle, height: 44 }}
+                        placeholder="Europe side score"
+                        value={match.scoreA}
+                        onChange={(e) => updateMatch(realIndex, "scoreA", e.target.value)}
+                      />
+                      <input
+                        style={{ ...inputStyle, height: 44 }}
+                        placeholder="USA side score"
+                        value={match.scoreB}
+                        onChange={(e) => updateMatch(realIndex, "scoreB", e.target.value)}
+                      />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginTop: 10 }}>
-                      <button style={match.winner === 'Europe' ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, 'Europe')}>Europe win</button>
-                      <button style={match.winner === 'USA' ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, 'USA')}>USA win</button>
-                      <button style={match.winner === 'Halved' ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, 'Halved')}>Halved</button>
+
+                    <div style={{ fontSize: 13, color: "#475569", margin: "8px 0 0 0" }}>
+                      Auto result: {match.winner || "—"}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginTop: 10 }}>
+                      <button style={match.winner === "Europe" ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, "Europe")}>
+                        Europe win
+                      </button>
+                      <button style={match.winner === "USA" ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, "USA")}>
+                        USA win
+                      </button>
+                      <button style={match.winner === "Halved" ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, "Halved")}>
+                        Halved
+                      </button>
                     </div>
                   </div>
                 );
@@ -503,10 +719,10 @@ export default function App() {
         )}
 
         {tab === "sidegames" && (
-          <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: "grid", gap: 16 }}>
             <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Overall side game winners</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <div>
                   <div style={{ marginBottom: 6 }}>Best drive winner</div>
                   <input style={inputStyle} value={bestDriveWinner} onChange={(e) => setBestDriveWinner(e.target.value)} placeholder="Player" />
@@ -528,14 +744,26 @@ export default function App() {
 
             <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Per-player long drive and nearest to hole</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
                 {players.map((player) => (
                   <div key={player.name} style={{ borderRadius: 14, padding: 12, ...getPlayerColors(player.team) }}>
                     <div style={{ fontWeight: 700 }}>{player.name}</div>
-                    <div style={{ color: '#64748b', fontSize: 13, marginBottom: 10 }}>{player.alias} • {player.team}</div>
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      <input style={inputStyle} value={sideStats[player.name]?.bestDrive || ''} onChange={(e) => updateSideStat(player.name, 'bestDrive', e.target.value)} placeholder="Best drive" />
-                      <input style={inputStyle} value={sideStats[player.name]?.nearestHole || ''} onChange={(e) => updateSideStat(player.name, 'nearestHole', e.target.value)} placeholder="Nearest hole" />
+                    <div style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
+                      {player.alias} • {player.team}
+                    </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <input
+                        style={inputStyle}
+                        value={sideStats[player.name]?.bestDrive || ""}
+                        onChange={(e) => updateSideStat(player.name, "bestDrive", e.target.value)}
+                        placeholder="Best drive"
+                      />
+                      <input
+                        style={inputStyle}
+                        value={sideStats[player.name]?.nearestHole || ""}
+                        onChange={(e) => updateSideStat(player.name, "nearestHole", e.target.value)}
+                        placeholder="Nearest hole"
+                      />
                     </div>
                   </div>
                 ))}
@@ -544,12 +772,18 @@ export default function App() {
 
             <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Most points by single player</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 {players.map((player) => (
                   <div key={`${player.name}-points`} style={{ borderRadius: 14, padding: 12, ...getPlayerColors(player.team) }}>
                     <div style={{ fontWeight: 700 }}>{player.name}</div>
-                    <div style={{ color: '#64748b', fontSize: 13, marginBottom: 8 }}>{player.team}</div>
-                    <input style={inputStyle} type="number" step="0.5" value={individualPoints[player.name] ?? 0} onChange={(e) => updatePointEntry(player.name, e.target.value)} />
+                    <div style={{ color: "#64748b", fontSize: 13, marginBottom: 8 }}>{player.team}</div>
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      step="0.5"
+                      value={individualPoints[player.name] ?? 0}
+                      onChange={(e) => updatePointEntry(player.name, e.target.value)}
+                    />
                   </div>
                 ))}
               </div>
@@ -558,27 +792,47 @@ export default function App() {
         )}
 
         {tab === "leaderboard" && (
-          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-            <div style={{ ...sectionStyle, gridColumn: 'span 2' }}>
+          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+            <div style={{ ...sectionStyle, gridColumn: "span 2" }}>
               <h2 style={{ marginTop: 0 }}>Individual leaderboard</h2>
-              <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: "grid", gap: 8 }}>
                 {leaderboard.map((player, index) => (
-                  <div key={player.name} style={{ display: 'flex', justifyContent: 'space-between', borderRadius: 12, padding: 10, ...getPlayerColors(player.team) }}>
+                  <div
+                    key={player.name}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      borderRadius: 12,
+                      padding: 10,
+                      ...getPlayerColors(player.team),
+                    }}
+                  >
                     <div>
-                      <div style={{ fontWeight: 700 }}>{index + 1}. {player.name}</div>
-                      <div style={{ color: '#64748b', fontSize: 13 }}>{player.alias} • {player.team}</div>
+                      <div style={{ fontWeight: 700 }}>
+                        {index + 1}. {player.name}
+                      </div>
+                      <div style={{ color: "#64748b", fontSize: 13 }}>
+                        {player.alias} • {player.team}
+                      </div>
                     </div>
                     <div style={{ fontWeight: 700 }}>{fmt(player.points)}</div>
                   </div>
                 ))}
               </div>
             </div>
+
             <div style={sectionStyle}>
               <h2 style={{ marginTop: 0 }}>Side games summary</h2>
-              <div style={{ display: 'grid', gap: 10 }}>
-                <div><strong>Best drive:</strong> {bestDriveWinner || '—'} {bestDriveValue ? `• ${bestDriveValue}` : ''}</div>
-                <div><strong>Nearest hole:</strong> {nearestWinner || '—'} {nearestValue ? `• ${nearestValue}` : ''}</div>
-                <div><strong>Formats:</strong> Texas Scramble, Fourball, Singles (HCP)</div>
+              <div style={{ display: "grid", gap: 10 }}>
+                <div>
+                  <strong>Best drive:</strong> {bestDriveWinner || "—"} {bestDriveValue ? `• ${bestDriveValue}` : ""}
+                </div>
+                <div>
+                  <strong>Nearest hole:</strong> {nearestWinner || "—"} {nearestValue ? `• ${nearestValue}` : ""}
+                </div>
+                <div>
+                  <strong>Formats:</strong> Texas Scramble, Fourball, Singles (HCP)
+                </div>
               </div>
             </div>
           </div>
