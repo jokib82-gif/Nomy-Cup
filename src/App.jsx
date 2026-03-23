@@ -307,299 +307,76 @@ function TeamCard({ title, players, total }) {
   };
 
   return (
-    <div style={sectionStyle}>
-      <h3 style={{ marginTop: 0 }}>{title}</h3>
-      <div style={{ color: "#475569", marginBottom: 12 }}>Total handicap: {fmt(total)}</div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {players.map((p) => (
-          <div key={p.name} style={playerCardStyle}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{p.name}</div>
-              <div style={{ fontSize: 13, color: "#64748b" }}>{p.alias}</div>
-            </div>
-            <div>{fmt(p.handicap)}</div>
-          </div>
-        ))}
+    <div style={{ ...sectionStyle, padding: 0, overflow: "hidden" }}>
+  <div
+    style={{
+      background: "linear-gradient(90deg, #facc15, #fde68a)",
+      padding: 14,
+      textAlign: "center",
+      fontWeight: 800,
+      fontSize: 16,
+      letterSpacing: 0.5,
+      color: "#1f2937",
+      borderBottom: "1px solid #f59e0b",
+    }}
+  >
+    💰 HOLE IN ONE → 1,000,000 kr
+  </div>
+
+  <div style={{ padding: 16 }}>
+    <h1 style={{ margin: "0 0 8px 0", display: "flex", alignItems: "center", gap: 10 }}>
+      🏆 <span style={{ fontWeight: 800 }}>Nomy Cup</span>
+    </h1>
+    <div style={{ color: "#475569", marginBottom: 12 }}>
+      Texas Scramble • Fourball • Singles (HCP)
+    </div>
+
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+      <div
+        style={{
+          border: "1px solid #1e40af",
+          background: "#1e3a8a",
+          borderRadius: 14,
+          padding: 12,
+          color: "white",
+        }}
+      >
+        <div style={{ color: "#ffffff", fontSize: 13 }}>Europe</div>
+        <div style={{ fontSize: 28, fontWeight: 700 }}>{teamPoints.europe.toFixed(1)}</div>
+        <div style={{ color: "#cbd5e1" }}>Total HCP {fmt(europeTotal)}</div>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #991b1b",
+          background: "#7f1d1d",
+          borderRadius: 14,
+          padding: 12,
+          color: "white",
+        }}
+      >
+        <div style={{ color: "#ffffff", fontSize: 13 }}>USA</div>
+        <div style={{ fontSize: 28, fontWeight: 700 }}>{teamPoints.usa.toFixed(1)}</div>
+        <div style={{ color: "#fecaca" }}>Total HCP {fmt(usaTotal)}</div>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #e2e8f0",
+          background: "#fff",
+          borderRadius: 14,
+          padding: 12,
+        }}
+      >
+        <div style={{ color: "#475569", fontSize: 13 }}>Status</div>
+        <div style={{ fontSize: 28, fontWeight: 700 }}>
+          {teamPoints.europe === teamPoints.usa ? "Tied" : teamPoints.europe > teamPoints.usa ? "Europe" : "USA"}
+        </div>
+        <div style={{ color: "#475569" }}>Winning target 6.5</div>
       </div>
     </div>
-  );
-}
-
-export default function App() {
-  const storageKey = "nomy-cup-state-v1";
-
-  const loadState = () => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const saved = loadState();
-  const [players, setPlayers] = useState(saved?.players || initialPlayers);
-  const [matches, setMatches] = useState(saved?.matches || generateMatches(saved?.players || initialPlayers));
-  const [individualPoints, setIndividualPoints] = useState(
-    saved?.individualPoints || buildPoints(saved?.players || initialPlayers)
-  );
-  const [sideStats, setSideStats] = useState(
-    saved?.sideStats || buildSideStats(saved?.players || initialPlayers)
-  );
-  const [tab, setTab] = useState(saved?.tab || "teams");
-  const [mobileSimulator, setMobileSimulator] = useState(saved?.mobileSimulator || "Simulator 1");
-  const [bestDriveWinner, setBestDriveWinner] = useState(saved?.bestDriveWinner || "");
-  const [bestDriveValue, setBestDriveValue] = useState(saved?.bestDriveValue || "");
-  const [nearestWinner, setNearestWinner] = useState(saved?.nearestWinner || "");
-  const [nearestValue, setNearestValue] = useState(saved?.nearestValue || "");
-  const [nearestToHoleWinners, setNearestToHoleWinners] = useState(
-    saved?.nearestToHoleWinners ||
-      Object.fromEntries(sideGameConfig.nearestToHoleHoles.map((hole) => [hole, { player: "", value: "" }]))
-  );
-  const [longDriveWinners, setLongDriveWinners] = useState(
-    saved?.longDriveWinners ||
-      Object.fromEntries(sideGameConfig.longestDriveHoles.map((hole) => [hole, { player: "", value: "" }]))
-  );
-
-  const europePlayers = useMemo(() => players.filter((p) => p.team === "Europe"), [players]);
-  const usaPlayers = useMemo(() => players.filter((p) => p.team === "USA"), [players]);
-  const europeTotal = useMemo(() => europePlayers.reduce((a, p) => a + p.handicap, 0), [europePlayers]);
-  const usaTotal = useMemo(() => usaPlayers.reduce((a, p) => a + p.handicap, 0), [usaPlayers]);
-
-  const teamPoints = useMemo(() => {
-    let europe = 0;
-    let usa = 0;
-    matches.forEach((m) => {
-      if (m.winner === "Europe") europe += Number(m.points || 0);
-      if (m.winner === "USA") usa += Number(m.points || 0);
-      if (m.winner === "Halved") {
-        europe += Number(m.points || 0) / 2;
-        usa += Number(m.points || 0) / 2;
-      }
-    });
-    return { europe, usa };
-  }, [matches]);
-
-  const sidePoints = useMemo(() => {
-    const pts = {};
-    players.forEach((p) => {
-      let s = 0;
-      const st = sideStats[p.name] || {};
-      if (st.bestDrive) s += 1;
-      if (st.nearestHole) s += 1;
-      if (bestDriveWinner === p.name) s += 1;
-      if (nearestWinner === p.name) s += 1;
-      pts[p.name] = s;
-    });
-    return pts;
-  }, [players, sideStats, bestDriveWinner, nearestWinner]);
-
-  const leaderboard = useMemo(() => {
-    return [...players]
-      .map((p) => ({ 
-        ...p, 
-        points: Number(individualPoints[p.name] || 0) + Number(sidePoints[p.name] || 0)
-      }))
-      .sort((a, b) => b.points - a.points || a.handicap - b.handicap);
-  }, [players, individualPoints, sidePoints]);
-
-  const mobileMatches = useMemo(
-    () => matches.filter((m) => m.simulator === mobileSimulator),
-    [matches, mobileSimulator]
-  );
-
-  const updatePlayer = (index, field, value) => {
-    setPlayers((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, [field]: field === "handicap" ? parseNum(value) : value } : p
-      )
-    );
-  };
-
-  const applyRoster = () => {
-    const cleaned = players.map((p, i) => ({
-      ...p,
-      name: (p.name || `Player ${i + 1}`).trim(),
-      alias: (p.alias || aliasPool[i] || `Alias ${i + 1}`).trim(),
-      handicap: parseNum(p.handicap),
-    }));
-    setPlayers(cleaned);
-    setMatches(generateMatches(cleaned));
-    setIndividualPoints((prev) => Object.fromEntries(cleaned.map((p) => [p.name, prev[p.name] || 0])));
-    setSideStats((prev) =>
-      Object.fromEntries(cleaned.map((p) => [p.name, prev[p.name] || { bestDrive: "", nearestHole: "" }]))
-    );
-  };
-
-  const autoRebalance = () => {
-    const balanced = rebalanceTeams(players);
-    setPlayers(balanced);
-    setMatches(generateMatches(balanced));
-    setIndividualPoints((prev) => Object.fromEntries(balanced.map((p) => [p.name, prev[p.name] || 0])));
-    setSideStats((prev) =>
-      Object.fromEntries(balanced.map((p) => [p.name, prev[p.name] || { bestDrive: "", nearestHole: "" }]))
-    );
-  };
-
-  const updateMatch = (idx, field, value) => {
-    setMatches((prev) =>
-      prev.map((m, i) => {
-        if (i !== idx) return m;
-
-        const updatedMatch = { ...m, [field]: value };
-
-        if (field === "scoreA" || field === "scoreB") {
-          updatedMatch.winner = getMatchResultFromScores(updatedMatch);
-        }
-
-        return updatedMatch;
-      })
-    );
-  };
-
-  const updateWinner = (idx, winner) => {
-    setMatches((prev) => prev.map((m, i) => (i === idx ? { ...m, winner } : m)));
-  };
-
-  const updatePointEntry = (name, value) => {
-    setIndividualPoints((prev) => ({ ...prev, [name]: parseNum(value) }));
-  };
-
-  const updateSideStat = (name, field, value) => {
-    setSideStats((prev) => ({
-      ...prev,
-      [name]: { ...(prev[name] || { bestDrive: "", nearestHole: "" }), [field]: value },
-    }));
-  };
-
-  const updateHoleSideGame = (setter, state, hole, field, value) => {
-    setter({
-      ...state,
-      [hole]: {
-        ...(state[hole] || { player: "", value: "" }),
-        [field]: value,
-      },
-    });
-  };
-
-  const tabs = ["teams", "matches", "mobile", "sidegames", "leaderboard"];
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const payload = {
-      players,
-      matches,
-      individualPoints,
-      sideStats,
-      tab,
-      mobileSimulator,
-      bestDriveWinner,
-      bestDriveValue,
-      nearestWinner,
-      nearestValue,
-      nearestToHoleWinners,
-      longDriveWinners,
-    };
-    window.localStorage.setItem(storageKey, JSON.stringify(payload));
-  }, [
-    players,
-    matches,
-    individualPoints,
-    sideStats,
-    tab,
-    mobileSimulator,
-    bestDriveWinner,
-    bestDriveValue,
-    nearestWinner,
-    nearestValue,
-    nearestToHoleWinners,
-    longDriveWinners,
-  ]);
-
-  const resetSavedData = () => {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(storageKey);
-    }
-    setPlayers(initialPlayers);
-    setMatches(generateMatches(initialPlayers));
-    setIndividualPoints(buildPoints(initialPlayers));
-    setSideStats(buildSideStats(initialPlayers));
-    setTab("teams");
-    setMobileSimulator("Simulator 1");
-    setBestDriveWinner("");
-    setBestDriveValue("");
-    setNearestWinner("");
-    setNearestValue("");
-    setNearestToHoleWinners(
-      Object.fromEntries(sideGameConfig.nearestToHoleHoles.map((hole) => [hole, { player: "", value: "" }]))
-    );
-    setLongDriveWinners(
-      Object.fromEntries(sideGameConfig.longestDriveHoles.map((hole) => [hole, { player: "", value: "" }]))
-    );
-  };
-
-  const getPlayerColors = (team) => ({
-    border: team === "Europe" ? "1px solid #bfdbfe" : "1px solid #fecaca",
-    background: team === "Europe" ? "#eff6ff" : "#fef2f2",
-  });
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)",
-        padding: 16,
-        fontFamily: "Arial, sans-serif",
-        color: "#0f172a",
-      }}
-    >
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gap: 16 }}>
-        <div style={{...sectionStyle, padding: 0, overflow: "hidden"}}>
-          <div style={{ background: "linear-gradient(90deg, #facc15, #fde68a)", padding: 12, textAlign: "center", fontWeight: 700 }}>
-            💰 Hole in One Prize: 1,000,000 kr
-          </div>
-          <div style={{ padding: 16 }}>
-          <h1 style={{ margin: "0 0 8px 0", display: "flex", alignItems: "center", gap: 10 }}>
-            🏆 <span style={{ fontWeight: 800 }}>Nomy Cup</span>
-          </h1>
-          <div style={{ color: "#475569", marginBottom: 12 }}>
-            Texas Scramble • Fourball • Singles (HCP)
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <div
-              style={{
-                border: "1px solid #1e40af",
-                background: "#1e3a8a",
-                borderRadius: 14,
-                padding: 12,
-                color: "white",
-              }}
-            >
-              <div style={{ color: "#ffffff", fontSize: 13 }}>Europe</div>
-              <div style={{ fontSize: 28, fontWeight: 700 }}>{teamPoints.europe.toFixed(1)}</div>
-              <div style={{ color: "#cbd5e1" }}>Total HCP {fmt(europeTotal)}</div>
-            </div>
-            <div
-              style={{
-                border: "1px solid #991b1b",
-                background: "#7f1d1d",
-                borderRadius: 14,
-                padding: 12,
-                color: "white",
-              }}
-            >
-              <div style={{ color: "#ffffff", fontSize: 13 }}>USA</div>
-              <div style={{ fontSize: 28, fontWeight: 700 }}>{teamPoints.usa.toFixed(1)}</div>
-              <div style={{ color: "#cbd5e1" }}>Total HCP {fmt(usaTotal)}</div>
-            </div>
-            <div style={{ border: "1px solid #e2e8f0", background: "#fff", borderRadius: 14, padding: 12 }}>
-              <div style={{ color: "#475569", fontSize: 13 }}>Status</div>
-              <div style={{ fontSize: 28, fontWeight: 700 }}>
-                {teamPoints.europe === teamPoints.usa ? "Tied" : teamPoints.europe > teamPoints.usa ? "Europe" : "USA"}
-              </div>
-              <div style={{ color: "#475569" }}>Winning target 6.5</div>
-            </div>
+  </div>
+</div>
           </div>
         </div>
 
