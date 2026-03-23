@@ -208,11 +208,13 @@ function buildSideStats(players) {
 }
 
 const sectionStyle = {
-  background: "rgba(255,255,255,0.95)",
+  background: "rgba(255,255,255,0.08)",
+  backdropFilter: "blur(12px)",
   borderRadius: 20,
   padding: 16,
-  boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
-  border: "1px solid #e2e8f0",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  color: "#f1f5f9",
 };
 
 const inputStyle = {
@@ -289,7 +291,7 @@ function getWinnerStyle(winner) {
   }
   return {
     border: "1px solid #e2e8f0",
-    background: "#ffffff",
+    background: "rgba(255,255,255,0.15)",
     color: "#64748b",
   };
 }
@@ -530,10 +532,10 @@ export default function App() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
+        background: "linear-gradient(180deg, #0f172a 0%, #1e293b 40%, #334155 100%)",
         padding: 16,
         fontFamily: "Arial, sans-serif",
-        color: "#0f172a",
+        color: "#e2e8f0",
       }}
     >
       <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gap: 16 }}>
@@ -704,7 +706,7 @@ export default function App() {
                             border: cardBorder,
                             borderRadius: 18,
                             padding: 14,
-                            background: "rgba(255,255,255,0.9)",
+                            background: "rgba(255,255,255,0.12)",
                             boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
                           }}
                         >
@@ -740,7 +742,7 @@ export default function App() {
                               fontWeight: 800,
                               fontSize: 18,
                               margin: "4px 0 10px 0",
-                              color: "#0f172a",
+                              color: "#e2e8f0",
                             }}
                           >
                             {match.matchup}
@@ -754,7 +756,7 @@ export default function App() {
                                 marginBottom: 10,
                                 padding: 10,
                                 borderRadius: 12,
-                                background: "#ffffff",
+                                background: "rgba(255,255,255,0.15)",
                                 border: "1px dashed #93c5fd",
                               }}
                             >
