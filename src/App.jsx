@@ -555,14 +555,16 @@ export default function App() {
       }}
     >
       <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gap: 16 }}>
-        <div style={sectionStyle}>
+        <div style={{...sectionStyle, padding: 0, overflow: "hidden"}}>
+          <div style={{ background: "linear-gradient(90deg, #facc15, #fde68a)", padding: 12, textAlign: "center", fontWeight: 700 }}>
+            💰 Hole in One Prize: 1,000,000 kr
+          </div>
+          <div style={{ padding: 16 }}>
           <h1 style={{ margin: "0 0 8px 0", display: "flex", alignItems: "center", gap: 10 }}>
             🏆 <span style={{ fontWeight: 800 }}>Nomy Cup</span>
           </h1>
           <div style={{ color: "#475569", marginBottom: 12 }}>
             Texas Scramble • Fourball • Singles (HCP)
-          
-          💰 Hole in One Prize: 1,000,000 kr
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             <div
