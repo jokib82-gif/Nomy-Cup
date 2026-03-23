@@ -202,10 +202,11 @@ function buildSideStats(players) {
 }
 
 const sectionStyle = {
-  background: "#fff",
-  borderRadius: 16,
+  background: "rgba(255,255,255,0.95)",
+  borderRadius: 20,
   padding: 16,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+  boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
+  border: "1px solid #e2e8f0",
 };
 
 const inputStyle = {
@@ -224,14 +225,68 @@ const buttonStyle = {
   background: "white",
   cursor: "pointer",
   fontSize: 14,
+  fontWeight: 600,
+  boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
 };
 
 const primaryButton = {
   ...buttonStyle,
-  background: "#111827",
+  background: "linear-gradient(135deg, #111827 0%, #334155 100%)",
   color: "white",
   border: "1px solid #111827",
 };
+
+const cardBorder = "1px solid #e2e8f0";
+
+const roundTheme = {
+  "Texas Scramble": {
+    border: "1px solid #fde68a",
+    background: "linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%)",
+    accent: "#b45309",
+    chipBg: "#fef3c7",
+  },
+  Fourball: {
+    border: "1px solid #c7d2fe",
+    background: "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)",
+    accent: "#4338ca",
+    chipBg: "#e0e7ff",
+  },
+  "Singles (HCP)": {
+    border: "1px solid #bfdbfe",
+    background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+    accent: "#1d4ed8",
+    chipBg: "#dbeafe",
+  },
+};
+
+function getWinnerStyle(winner) {
+  if (winner === "Europe") {
+    return {
+      border: "1px solid #93c5fd",
+      background: "#dbeafe",
+      color: "#1d4ed8",
+    };
+  }
+  if (winner === "USA") {
+    return {
+      border: "1px solid #fca5a5",
+      background: "#fee2e2",
+      color: "#b91c1c",
+    };
+  }
+  if (winner === "Halved") {
+    return {
+      border: "1px solid #cbd5e1",
+      background: "#f8fafc",
+      color: "#475569",
+    };
+  }
+  return {
+    border: "1px solid #e2e8f0",
+    background: "#ffffff",
+    color: "#64748b",
+  };
+}
 
 function TeamCard({ title, players, total }) {
   const isEurope = title === "Europe";
@@ -279,8 +334,12 @@ export default function App() {
   const saved = loadState();
   const [players, setPlayers] = useState(saved?.players || initialPlayers);
   const [matches, setMatches] = useState(saved?.matches || generateMatches(saved?.players || initialPlayers));
-  const [individualPoints, setIndividualPoints] = useState(saved?.individualPoints || buildPoints(saved?.players || initialPlayers));
-  const [sideStats, setSideStats] = useState(saved?.sideStats || buildSideStats(saved?.players || initialPlayers));
+  const [individualPoints, setIndividualPoints] = useState(
+    saved?.individualPoints || buildPoints(saved?.players || initialPlayers)
+  );
+  const [sideStats, setSideStats] = useState(
+    saved?.sideStats || buildSideStats(saved?.players || initialPlayers)
+  );
   const [tab, setTab] = useState(saved?.tab || "teams");
   const [mobileSimulator, setMobileSimulator] = useState(saved?.mobileSimulator || "Simulator 1");
   const [bestDriveWinner, setBestDriveWinner] = useState(saved?.bestDriveWinner || "");
@@ -437,7 +496,7 @@ export default function App() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
         padding: 16,
         fontFamily: "Arial, sans-serif",
         color: "#0f172a",
@@ -564,72 +623,220 @@ export default function App() {
 
         {tab === "matches" && (
           <div style={{ display: "grid", gap: 16 }}>
-            {["Texas Scramble", "Fourball", "Singles (HCP)"].map((round) => (
-              <div key={round} style={sectionStyle}>
-                <h2 style={{ marginTop: 0 }}>{round}</h2>
-                <div style={{ display: "grid", gap: 12 }}>
-                  {matches.map((match, idx) =>
-                    match.round === round ? (
-                      <div key={`${round}-${idx}`} style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 12 }}>
-                        <div style={{ fontSize: 13, color: "#64748b" }}>{match.simulator}</div>
-                        <div style={{ fontWeight: 700, margin: "4px 0 8px 0" }}>{match.matchup}</div>
+            {["Texas Scramble", "Fourball", "Singles (HCP)"].map((round) => {
+              const theme = roundTheme[round];
 
-                        {round === "Singles (HCP)" && (
-                          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
-                            Europe {fmt(match.hcpA)} • USA {fmt(match.hcpB)} • {match.strokePlayer} gets {fmt(match.hcpDiff)} strokes
-                            {hasValidScore(match.scoreA) && hasValidScore(match.scoreB) && (() => {
-                              const { netA, netB } = getSinglesNetScores(match);
-                              return (
-                                <div style={{ marginTop: 4 }}>
-                                  Net: Europe {fmt(netA)} • USA {fmt(netB)}
-                                </div>
-                              );
-                            })()}
+              return (
+                <div
+                  key={round}
+                  style={{
+                    ...sectionStyle,
+                    border: theme.border,
+                    background: theme.background,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                      flexWrap: "wrap",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <h2 style={{ margin: 0, color: theme.accent }}>{round}</h2>
+                    <div
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        background: theme.chipBg,
+                        color: theme.accent,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        border: theme.border,
+                      }}
+                    >
+                      {matches.filter((m) => m.round === round).length} matches
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {matches.map((match, idx) =>
+                      match.round === round ? (
+                        <div
+                          key={`${round}-${idx}`}
+                          style={{
+                            border: cardBorder,
+                            borderRadius: 18,
+                            padding: 14,
+                            background: "rgba(255,255,255,0.9)",
+                            boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 10,
+                              flexWrap: "wrap",
+                              marginBottom: 8,
+                            }}
+                          >
+                            <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>
+                              {match.simulator}
+                            </div>
+
+                            <div
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: 999,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                ...getWinnerStyle(match.winner),
+                              }}
+                            >
+                              {match.winner || "Awaiting score"}
+                            </div>
                           </div>
-                        )}
 
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
-                          <input
-                            style={inputStyle}
-                            placeholder="Current hole"
-                            value={match.hole}
-                            onChange={(e) => updateMatch(idx, "hole", e.target.value)}
-                          />
-                          <input
-                            style={inputStyle}
-                            placeholder="Europe side"
-                            value={match.scoreA}
-                            onChange={(e) => updateMatch(idx, "scoreA", e.target.value)}
-                          />
-                          <input
-                            style={inputStyle}
-                            placeholder="USA side"
-                            value={match.scoreB}
-                            onChange={(e) => updateMatch(idx, "scoreB", e.target.value)}
-                          />
-                        </div>
+                          <div
+                            style={{
+                              fontWeight: 800,
+                              fontSize: 18,
+                              margin: "4px 0 10px 0",
+                              color: "#0f172a",
+                            }}
+                          >
+                            {match.matchup}
+                          </div>
 
-                        <div style={{ fontSize: 13, color: "#475569", marginBottom: 8 }}>
-                          Auto result: {match.winner || "—"}
-                        </div>
+                          {round === "Singles (HCP)" && (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: "#475569",
+                                marginBottom: 10,
+                                padding: 10,
+                                borderRadius: 12,
+                                background: "#ffffff",
+                                border: "1px dashed #93c5fd",
+                              }}
+                            >
+                              Europe {fmt(match.hcpA)} • USA {fmt(match.hcpB)} •{" "}
+                              <strong>{match.strokePlayer}</strong> gets {fmt(match.hcpDiff)} strokes
+                              {hasValidScore(match.scoreA) &&
+                                hasValidScore(match.scoreB) &&
+                                (() => {
+                                  const { netA, netB } = getSinglesNetScores(match);
+                                  return (
+                                    <div style={{ marginTop: 6, fontWeight: 700, color: "#1d4ed8" }}>
+                                      Net: Europe {fmt(netA)} • USA {fmt(netB)}
+                                    </div>
+                                  );
+                                })()}
+                            </div>
+                          )}
 
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button style={match.winner === "Europe" ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, "Europe")}>
-                            Europe win
-                          </button>
-                          <button style={match.winner === "USA" ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, "USA")}>
-                            USA win
-                          </button>
-                          <button style={match.winner === "Halved" ? primaryButton : buttonStyle} onClick={() => updateWinner(idx, "Halved")}>
-                            Halved
-                          </button>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr 1fr",
+                              gap: 10,
+                              marginBottom: 10,
+                            }}
+                          >
+                            <input
+                              style={inputStyle}
+                              placeholder="Current hole"
+                              value={match.hole}
+                              onChange={(e) => updateMatch(idx, "hole", e.target.value)}
+                            />
+                            <input
+                              style={{
+                                ...inputStyle,
+                                border: "1px solid #93c5fd",
+                                background: "#eff6ff",
+                              }}
+                              placeholder="Europe side"
+                              value={match.scoreA}
+                              onChange={(e) => updateMatch(idx, "scoreA", e.target.value)}
+                            />
+                            <input
+                              style={{
+                                ...inputStyle,
+                                border: "1px solid #fca5a5",
+                                background: "#fef2f2",
+                              }}
+                              placeholder="USA side"
+                              value={match.scoreB}
+                              onChange={(e) => updateMatch(idx, "scoreB", e.target.value)}
+                            />
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: "#334155",
+                              marginBottom: 10,
+                              fontWeight: 600,
+                            }}
+                          >
+                            Auto result: {match.winner || "—"}
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              style={
+                                match.winner === "Europe"
+                                  ? {
+                                      ...primaryButton,
+                                      background: "#2563eb",
+                                      border: "1px solid #2563eb",
+                                    }
+                                  : buttonStyle
+                              }
+                              onClick={() => updateWinner(idx, "Europe")}
+                            >
+                              Europe win
+                            </button>
+                            <button
+                              style={
+                                match.winner === "USA"
+                                  ? {
+                                      ...primaryButton,
+                                      background: "#dc2626",
+                                      border: "1px solid #dc2626",
+                                    }
+                                  : buttonStyle
+                              }
+                              onClick={() => updateWinner(idx, "USA")}
+                            >
+                              USA win
+                            </button>
+                            <button
+                              style={
+                                match.winner === "Halved"
+                                  ? {
+                                      ...primaryButton,
+                                      background: "#475569",
+                                      border: "1px solid #475569",
+                                    }
+                                  : buttonStyle
+                              }
+                              onClick={() => updateWinner(idx, "Halved")}
+                            >
+                              Halved
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : null
-                  )}
+                      ) : null
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -664,14 +871,16 @@ export default function App() {
                     {match.round === "Singles (HCP)" && (
                       <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>
                         {match.strokePlayer} gets {fmt(match.hcpDiff)} strokes
-                        {hasValidScore(match.scoreA) && hasValidScore(match.scoreB) && (() => {
-                          const { netA, netB } = getSinglesNetScores(match);
-                          return (
-                            <div style={{ marginTop: 4 }}>
-                              Net: Europe {fmt(netA)} • USA {fmt(netB)}
-                            </div>
-                          );
-                        })()}
+                        {hasValidScore(match.scoreA) &&
+                          hasValidScore(match.scoreB) &&
+                          (() => {
+                            const { netA, netB } = getSinglesNetScores(match);
+                            return (
+                              <div style={{ marginTop: 4 }}>
+                                Net: Europe {fmt(netA)} • USA {fmt(netB)}
+                              </div>
+                            );
+                          })()}
                       </div>
                     )}
 
@@ -701,13 +910,22 @@ export default function App() {
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginTop: 10 }}>
-                      <button style={match.winner === "Europe" ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, "Europe")}>
+                      <button
+                        style={match.winner === "Europe" ? primaryButton : buttonStyle}
+                        onClick={() => updateWinner(realIndex, "Europe")}
+                      >
                         Europe win
                       </button>
-                      <button style={match.winner === "USA" ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, "USA")}>
+                      <button
+                        style={match.winner === "USA" ? primaryButton : buttonStyle}
+                        onClick={() => updateWinner(realIndex, "USA")}
+                      >
                         USA win
                       </button>
-                      <button style={match.winner === "Halved" ? primaryButton : buttonStyle} onClick={() => updateWinner(realIndex, "Halved")}>
+                      <button
+                        style={match.winner === "Halved" ? primaryButton : buttonStyle}
+                        onClick={() => updateWinner(realIndex, "Halved")}
+                      >
                         Halved
                       </button>
                     </div>
@@ -725,19 +943,39 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <div>
                   <div style={{ marginBottom: 6 }}>Best drive winner</div>
-                  <input style={inputStyle} value={bestDriveWinner} onChange={(e) => setBestDriveWinner(e.target.value)} placeholder="Player" />
+                  <input
+                    style={inputStyle}
+                    value={bestDriveWinner}
+                    onChange={(e) => setBestDriveWinner(e.target.value)}
+                    placeholder="Player"
+                  />
                 </div>
                 <div>
                   <div style={{ marginBottom: 6 }}>Best drive value</div>
-                  <input style={inputStyle} value={bestDriveValue} onChange={(e) => setBestDriveValue(e.target.value)} placeholder="e.g. 289 m" />
+                  <input
+                    style={inputStyle}
+                    value={bestDriveValue}
+                    onChange={(e) => setBestDriveValue(e.target.value)}
+                    placeholder="e.g. 289 m"
+                  />
                 </div>
                 <div>
                   <div style={{ marginBottom: 6 }}>Nearest hole winner</div>
-                  <input style={inputStyle} value={nearestWinner} onChange={(e) => setNearestWinner(e.target.value)} placeholder="Player" />
+                  <input
+                    style={inputStyle}
+                    value={nearestWinner}
+                    onChange={(e) => setNearestWinner(e.target.value)}
+                    placeholder="Player"
+                  />
                 </div>
                 <div>
                   <div style={{ marginBottom: 6 }}>Nearest hole value</div>
-                  <input style={inputStyle} value={nearestValue} onChange={(e) => setNearestValue(e.target.value)} placeholder="e.g. 1.82 m" />
+                  <input
+                    style={inputStyle}
+                    value={nearestValue}
+                    onChange={(e) => setNearestValue(e.target.value)}
+                    placeholder="e.g. 1.82 m"
+                  />
                 </div>
               </div>
             </div>
